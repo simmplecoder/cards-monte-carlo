@@ -1,0 +1,9 @@
+.idea/
+BlossomSample.vcxproj
+BlossomSample.vcxproj.filters
+Debug/
+HandRanks.dat
+ReadMe.txt
+Release/
+build/
+cmake-build-debug/
