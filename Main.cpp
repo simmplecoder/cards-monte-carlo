@@ -12,15 +12,14 @@ int main()
 
 	std::unique_ptr<HandEvaluator> Evaluator = std::make_unique<HandEvaluator>();
 	
-	std::array<std::shared_ptr<Card>, 2> PlayerHole = { std::make_shared<Card>(Suit::Spade, Rank::Three), 
-														std::make_shared<Card>(Suit::Club, Rank::King) };
+	std::array<Card, 2> PlayerHole = { Card(Suit::Spade, Rank::Three), Card(Suit::Club, Rank::King) };
 
 	std::array<std::shared_ptr<Card>, 5> Communal = { std::make_shared<Card>(Suit::Heart, Rank::King), 
 													  nullptr, nullptr,nullptr,nullptr };
 
 	for (unsigned int Count = 0; Count < SimulationsLimit; Count++)
 	{
-		std::cout << "Simulation " << Count << " - Chance of winning with " << PlayerHole[0]->GetInfo() << "," << PlayerHole[1]->GetInfo() << ": ";
+		std::cout << "Simulation " << Count << " - Chance of winning with " << PlayerHole[0]->to_string() << "," << PlayerHole[1]->to_string() << ": ";
 		std::cout << Evaluator->DetermineOdds_MonteCarlo_Multi(PlayerHole, Communal, PlayerAmt, Trials) << "\n";
 	}
 

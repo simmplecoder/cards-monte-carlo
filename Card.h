@@ -8,17 +8,27 @@ enum class Suit { Club, Diamond, Heart, Spade };
 class Card
 {
 public:
+	Card() = default;
+
+	Card(Suit suit, Rank rank) :
+		suit(suit),
+		rank(rank)
+	{
+
+	}
+
 	Suit get_suit() const { return suit; };
 	Rank get_rank() const { return rank; };
-
-	int int_suit() const { return static_cast<int>(suit); }
-	int int_rank() const { return static_cast<int>(rank); }
 
 	bool operator>(const Card& other) const {
 		if (rank == other.rank)
 			return suit > other.suit;
 
 		return rank > other.rank;
+	}
+
+	bool operator==(const Card& other) const {
+		return suit == other.suit && rank == other.rank;
 	}
 
 	std::string to_string() const;

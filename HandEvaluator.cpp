@@ -27,47 +27,25 @@ void HandEvaluator::Initialize()
 	}
 }
 
-void HandEvaluator::RandomFill(std::vector<std::shared_ptr<Card>>& _Set, std::vector<std::shared_ptr<Card>>& _Dead, unsigned int _Target)
+void HandEvaluator::RandomFill(std::vector<Card>& set, std::vector<Card>& dead, std::size_t target)
 {
-	//Add the cards that are currently in Set as dead cards
-	for (auto const& CardInSet : _Set)
-	{
-		if (CardInSet == nullptr)
-			break;
-
-		_Dead.push_back(CardInSet);
-	}
-
-	bool IsDead;
-	unsigned int RequiredAmt = _Target - _Set.size();
-
-	//std::shared_ptr<Card> RandomCard;
-	unsigned int CardIndex = 0;
+	std::size_t required_amount = target - set.size();
 	std::uniform_int_distribution<unsigned int> CardsDistribution(0, 51);
 
-	for (unsigned int Index = 0; Index < RequiredAmt; Index++)
-	{
+	auto generate_card = [&]() {
 		while (true)
 		{
-			IsDead = false;
-			CardIndex = CardsDistribution(MTGenerator);
+			auto picked_card = ReferenceDeck[CardsDistribution(MTGenerator)];
+			bool alive = std::find(dead.begin(), dead.end(), picked_card) == dead.end();
 
-			for (auto const& Dead : _Dead)
+			if (alive)
 			{
-				if (ReferenceDeck[CardIndex]->GetRank() == Dead->GetRank() && ReferenceDeck[CardIndex]->GetSuit() == Dead->GetSuit())
-				{
-					IsDead = true;
-					break;
-				}
-			}
-
-			if (!IsDead)
-			{
-				_Set.push_back(ReferenceDeck[CardIndex]);
-				break;
+				return picked_card;
 			}
 		}
-	}
+	};
+
+	std::generate_n(std::back_inserter(set), required_amount, generate_card);
 }
 
 int HandEvaluator::GetCardInt(std::string _CardTxt)
@@ -125,17 +103,17 @@ void HandEvaluator::Get7CardsInt(const std::array<std::shared_ptr<Card>, 7>& _Ha
 		_CardInts[Index] = GetCardInt(_Hand[Index]);
 }
 
-float HandEvaluator::DetermineOdds_MonteCarlo_Multi(std::array<std::shared_ptr<Card>, 2> _Hole, std::array<std::shared_ptr<Card>, 5> _Community, unsigned int _PlayerAmt, unsigned int _TrialsAmt)
+float HandEvaluator::DetermineOdds_MonteCarlo_Multi(std::array<Card, 2> hole, const std::vector<Card> community, unsigned int _PlayerAmt, unsigned int _TrialsAmt)
 {
 	unsigned int PlayerScore;
-	std::array<std::shared_ptr<Card>, 7> PlayerHand;
+	std::array<Card, 7> PlayerHand{};
 
 	std::vector<unsigned int> OpponentScores;
-	std::vector<std::array<std::shared_ptr<Card>, 7>> OpponentHands;
-	std::vector<std::vector<std::shared_ptr<Card>>> Rand_OpponentsHole;
+	std::vector<std::array<Card, 7>> OpponentHands;
+	std::vector<std::vector<Card>> Rand_OpponentsHole;
 
-	std::vector<std::shared_ptr<Card>> Dead;
-	std::vector<std::shared_ptr<Card>> Rand_Community;
+	std::vector<Card> dead;
+	std::vector<Card> rand_community(community);
 
 	unsigned int Win = 0, Draw = 0, GameCount = 0, ExistingCount = 0;
 
@@ -146,58 +124,50 @@ float HandEvaluator::DetermineOdds_MonteCarlo_Multi(std::array<std::shared_ptr<C
 	for (unsigned int Index = 0; Index < _PlayerAmt; Index++)
 	{
 		OpponentScores.push_back(0);
-		OpponentHands.push_back({ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr });
-		Rand_OpponentsHole.emplace_back({});
+		OpponentHands.emplace_back();
+		Rand_OpponentsHole.emplace_back();
 	}
 
 	//Insert known information (Player's hole cards and current Community cards)
-	for (auto const& Card : _Community)
-	{
-		if (Card != nullptr)
-		{
-			Rand_Community.push_back(Card);
-			ExistingCount++;
-		}
-	}
 
-	PlayerHand[0] = _Hole[0];
-	PlayerHand[1] = _Hole[1];
+	PlayerHand[0] = hole[0];
+	PlayerHand[1] = hole[1];
 
 	for (unsigned int Index = 0; Index < ExistingCount; Index++)
 	{
-		PlayerHand[2 + Index] = Rand_Community[Index];
+		PlayerHand[2 + Index] = rand_community[Index];
 
 		for (auto &OppoHand : OpponentHands)
-			OppoHand[Index] = Rand_Community[Index];
+			OppoHand[Index] = rand_community[Index];
 	}
 
-	Dead.insert(Dead.end(), _Hole.begin(), _Hole.end());
-	Dead.insert(Dead.end(), Rand_Community.begin(), Rand_Community.end());
+	dead.insert(dead.end(), hole.begin(), hole.end());
+	dead.insert(dead.end(), rand_community.begin(), rand_community.end());
 
 	for (unsigned int TrialIndex = 0; TrialIndex < _TrialsAmt; TrialIndex++)
 	{
 		//Add random cards (excluding dead cards) into Community until it reached 5 cards
-		RandomFill(Rand_Community, Dead, 5);
+		RandomFill(rand_community, dead, 5);
 
-		Dead.insert(Dead.end(), Rand_Community.begin() + ExistingCount, Rand_Community.end());
+		dead.insert(dead.end(), rand_community.begin() + ExistingCount, rand_community.end());
 
 		for (auto &OppoHole : Rand_OpponentsHole)
 		{
-			RandomFill(OppoHole, Dead, 2);
-			Dead.insert(Dead.end(), OppoHole.begin(), OppoHole.end());
+			RandomFill(OppoHole, dead, 2);
+			dead.insert(dead.end(), OppoHole.begin(), OppoHole.end());
 		}
 
 		//Add communal cards into both player's and opponent's hand
-		for (unsigned int Index = ExistingCount, Maximum = Rand_Community.size(); Index < Maximum; Index++)
-			PlayerHand[Index + 2] = Rand_Community[Index];
+		for (unsigned int Index = ExistingCount, Maximum = rand_community.size(); Index < Maximum; Index++)
+			PlayerHand[Index + 2] = rand_community[Index];
 
 		for (unsigned int Index = 0; Index < _PlayerAmt - 1; Index++)
 		{
 			OpponentHands[Index][ExistingCount] = Rand_OpponentsHole[Index][0];
 			OpponentHands[Index][ExistingCount + 1] = Rand_OpponentsHole[Index][1];
 
-			for (unsigned int CommIndex = ExistingCount, Maximum = Rand_Community.size(); CommIndex < Maximum; CommIndex++)
-				OpponentHands[Index][CommIndex + 2] = Rand_Community[CommIndex];
+			for (unsigned int CommIndex = ExistingCount, Maximum = rand_community.size(); CommIndex < Maximum; CommIndex++)
+				OpponentHands[Index][CommIndex + 2] = rand_community[CommIndex];
 		}
 
 		//Get scores for Player's Hand and Opponents' Hand
@@ -222,8 +192,8 @@ float HandEvaluator::DetermineOdds_MonteCarlo_Multi(std::array<std::shared_ptr<C
 		GameCount++;
 
 		//Erase all random info
-		Dead.erase(Dead.begin() + ExistingCount, Dead.end());
-		Rand_Community.erase(Rand_Community.begin() + ExistingCount, Rand_Community.end());
+		dead.erase(dead.begin() + ExistingCount, dead.end());
+		rand_community.erase(rand_community.begin() + ExistingCount, rand_community.end());
 
 		for (auto &OppoHole : Rand_OpponentsHole)
 			OppoHole.clear();
