@@ -1,18 +1,24 @@
 #include "HandEvaluator.h"
 #include "Card.h"
 #include <cstring>
+#include <random>
+#include <algorithm>
+#include <chrono>
 
 HandEvaluator::HandEvaluator()
 {
+	auto now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+
+	std::seed_seq seq{static_cast<unsigned int>(now), std::random_device{}(), 42u};
+	MTGenerator.seed(seq);
 	Initialize();
-	MTGenerator.seed(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 }
 
 void HandEvaluator::Initialize()
 {
-	std::memset(HR, 0, sizeof(HR));
+	HR.resize(32487834);
 	FILE * fin = fopen("HandRanks.dat", "rb");
-	size_t bytesread = fread(HR, sizeof(HR), 1, fin);
+	(void)fread(HR.data(), HR.size(), 1, fin);
 	fclose(fin);
 
 	int ReferenceIndex = 0;
@@ -21,7 +27,7 @@ void HandEvaluator::Initialize()
 	{
 		for (unsigned int VIndex = 0; VIndex < 13; VIndex++)
 		{
-			ReferenceDeck[ReferenceIndex] = std::make_shared<Card>(static_cast<Suit>(SIndex), static_cast<Rank>(VIndex));
+			ReferenceDeck[ReferenceIndex] = Card(static_cast<Suit>(SIndex), static_cast<Rank>(VIndex));
 			ReferenceIndex++;
 		}
 	}
@@ -48,59 +54,14 @@ void HandEvaluator::RandomFill(std::vector<Card>& set, std::vector<Card>& dead, 
 	std::generate_n(std::back_inserter(set), required_amount, generate_card);
 }
 
-int HandEvaluator::GetCardInt(std::string _CardTxt)
+std::array<int, 7> HandEvaluator::Get7CardsInt(const std::array<Card, 7>& hand)
 {
-	int RankInt = -1, SuitInt = -1;
+	std::array<int, 7> cards_as_ints = {};
+	std::transform(hand.begin(), hand.end(), cards_as_ints.begin(), [](Card card) {
+		return static_cast<int>(card);
+	});
 
-	char SuitType = _CardTxt.back();
-	std::string RankType = _CardTxt.substr(0, _CardTxt.size() - 1);
-
-	switch (SuitType)
-	{
-	case 's':
-		SuitInt = static_cast<int>(Suit::Spade);
-		break;
-	case 'h':
-		SuitInt = static_cast<int>(Suit::Heart);
-		break;
-	case 'd':
-		SuitInt = static_cast<int>(Suit::Diamond);
-		break;
-	case 'c':
-		SuitInt = static_cast<int>(Suit::Club);
-		break;
-	default:
-		SuitInt = -1;
-		break;
-	}
-
-	if (RankType == "J")
-		RankInt = static_cast<int>(Rank::Jack);
-	else if (RankType == "Q")
-		RankInt = static_cast<int>(Rank::Queen);
-	else if (RankType == "K")
-		RankInt = static_cast<int>(Rank::King);
-	else if (RankType == "A")
-		RankInt = static_cast<int>(Rank::Ace);
-	else
-		RankInt = std::stoi(RankType) - 2;
-
-	if (SuitInt == -1 || RankInt == -1)
-		return -1;
-
-	return (RankInt * 4) + SuitInt + 1;
-
-}
-
-int HandEvaluator::GetCardInt(const std::shared_ptr<Card>& _Card)
-{
-	return (_Card->get_rank() * 4) + _Card->get_suit() + 1;
-}
-
-void HandEvaluator::Get7CardsInt(const std::array<std::shared_ptr<Card>, 7>& _Hand, std::array<int, 7>& _CardInts)
-{
-	for (unsigned int Index = 0; Index < _Hand.size(); Index++)
-		_CardInts[Index] = GetCardInt(_Hand[Index]);
+	return cards_as_ints;
 }
 
 float HandEvaluator::DetermineOdds_MonteCarlo_Multi(std::array<Card, 2> hole, const std::vector<Card> community, unsigned int _PlayerAmt, unsigned int _TrialsAmt)
@@ -202,10 +163,9 @@ float HandEvaluator::DetermineOdds_MonteCarlo_Multi(std::array<Card, 2> hole, co
 	return (((float)Win) + ((float)Draw) / 2.0f) / ((float)GameCount) * 100.0f;
 }
 
-int HandEvaluator::DetermineValue_7Cards(const std::array<std::shared_ptr<Card>, 7>& _Hand)
+int HandEvaluator::DetermineValue_7Cards(const std::array<Card, 7>& _Hand)
 {
-	std::array<int, 7> CardInts = {};
-	Get7CardsInt(_Hand, CardInts);
+	std::array<int, 7> CardInts = Get7CardsInt(_Hand);
 
 	return HR[HR[HR[HR[HR[HR[53 + CardInts[0]] + CardInts[1]] + CardInts[2]] + CardInts[3]] + CardInts[4]] + CardInts[5]];
 }

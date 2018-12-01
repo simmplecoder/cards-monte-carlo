@@ -13,9 +13,9 @@ public:
 	Card(Suit suit, Rank rank) :
 		suit(suit),
 		rank(rank)
-	{
+	{}
 
-	}
+	Card(std::string text);
 
 	Suit get_suit() const { return suit; };
 	Rank get_rank() const { return rank; };
@@ -32,6 +32,10 @@ public:
 	}
 
 	std::string to_string() const;
+
+	explicit operator int() {
+        return (static_cast<int>(rank) * 4) + static_cast<int>(suit) + 1;
+	}
 private:
 	Suit suit;
 	Rank rank;
