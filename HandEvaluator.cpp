@@ -67,38 +67,23 @@ std::array<int, 7> HandEvaluator::Get7CardsInt(const std::array<Card, 7>& hand)
 float HandEvaluator::DetermineOdds_MonteCarlo_Multi(std::array<Card, 2> hole, const std::vector<Card> community, unsigned int _PlayerAmt, unsigned int _TrialsAmt)
 {
 	unsigned int PlayerScore;
-	std::array<Card, 7> PlayerHand{};
+	std::array<Card, 7> PlayerHand{hole[0], hole[1]};
 
-	std::vector<unsigned int> OpponentScores;
-	std::vector<std::array<Card, 7>> OpponentHands;
-	std::vector<std::vector<Card>> Rand_OpponentsHole;
+	std::vector<unsigned int> OpponentScores(_PlayerAmt);
+	std::vector<std::array<Card, 7>> OpponentHands(_PlayerAmt);
+	std::vector<std::vector<Card>> Rand_OpponentsHole(_PlayerAmt);
 
 	std::vector<Card> dead;
 	std::vector<Card> rand_community(community);
 
-	unsigned int Win = 0, Draw = 0, GameCount = 0, ExistingCount = 0;
-
-	OpponentScores.reserve(_PlayerAmt - 1);
-	OpponentHands.reserve(_PlayerAmt - 1);
-	Rand_OpponentsHole.reserve(_PlayerAmt - 1);
-
-	for (unsigned int Index = 0; Index < _PlayerAmt; Index++)
-	{
-		OpponentScores.push_back(0);
-		OpponentHands.emplace_back();
-		Rand_OpponentsHole.emplace_back();
-	}
-
-	//Insert known information (Player's hole cards and current Community cards)
-
-	PlayerHand[0] = hole[0];
-	PlayerHand[1] = hole[1];
+	unsigned int Win = 0, Draw = 0, GameCount = 0;
+	auto ExistingCount = rand_community.size();
 
 	for (unsigned int Index = 0; Index < ExistingCount; Index++)
 	{
 		PlayerHand[2 + Index] = rand_community[Index];
 
-		for (auto &OppoHand : OpponentHands)
+		for (auto& OppoHand : OpponentHands)
 			OppoHand[Index] = rand_community[Index];
 	}
 
